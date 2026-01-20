@@ -39,23 +39,37 @@ class ModelWrapper(torch.nn.Module):
         # Ensure the wrapper is in eval mode
         self.eval()
     
-    def forward(self, input_ids):
+    def forward(self, input_ids, attention_mask=None):
         """
         Forward pass that returns only logits.
         
         Args:
             input_ids: Input token IDs
+            attention_mask: Optional attention mask to avoid dynamic mask generation
             
         Returns:
             Logits tensor only (no cache or other objects)
         """
         # Call model with use_cache=False to prevent DynamicCache generation
+        # Provide attention_mask to avoid dynamic causal mask generation which
+        # uses vmap operations incompatible with torch.export
         # Most transformer models support these parameters, but we handle gracefully
         try:
-            outputs = self.model(input_ids, use_cache=False, return_dict=True)
+            if attention_mask is not None:
+                outputs = self.model(
+                    input_ids, 
+                    attention_mask=attention_mask,
+                    use_cache=False, 
+                    return_dict=True
+                )
+            else:
+                outputs = self.model(input_ids, use_cache=False, return_dict=True)
         except TypeError:
             # Fallback for models that don't support use_cache/return_dict
-            outputs = self.model(input_ids)
+            if attention_mask is not None:
+                outputs = self.model(input_ids, attention_mask=attention_mask)
+            else:
+                outputs = self.model(input_ids)
         
         # Extract logits from output
         if hasattr(outputs, 'logits'):
@@ -131,14 +145,14 @@ def convert_hf_to_litertlm(
         # Convert to LiteRT using ai-edge-torch
         # Note: The exact conversion API depends on the ai-edge-torch version
         # This is a general approach that may need adjustment based on model architecture
-        # Pass only input_ids to avoid tracing issues with models like Qwen
-        # that contain operations not supported by torch.fx during graph tracing
+        # Pass input_ids and attention_mask to avoid dynamic mask generation issues
+        # that use vmap operations not supported by torch.export
         # Use wrapped model to return only logits (no cache objects)
         # Use torch.no_grad() to ensure no gradients are tracked during conversion
         with torch.no_grad():
             edge_model = ai_edge_torch.convert(
                 wrapped_model,
-                (sample_input["input_ids"],)
+                (sample_input["input_ids"], sample_input["attention_mask"])
             )
         
         # Apply quantization if requested
