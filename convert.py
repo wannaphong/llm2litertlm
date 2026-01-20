@@ -8,6 +8,7 @@ tokenizer and metadata for deployment on mobile and edge devices.
 """
 
 import argparse
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -97,7 +98,9 @@ def convert_hf_to_litertlm(
         if build_litertlm and output_path.endswith('.litertlm'):
             # First save as TFLite
             with tempfile.TemporaryDirectory() as temp_dir:
-                temp_tflite = Path(temp_dir) / "model.tflite"
+                # Use the desired output name as the base for the tflite file
+                output_stem = Path(output_path).stem
+                temp_tflite = Path(temp_dir) / f"{output_stem}.tflite"
                 print(f"Saving intermediate TFLite model...")
                 edge_model.export(str(temp_tflite))
                 
@@ -110,25 +113,30 @@ def convert_hf_to_litertlm(
                 if not litertlm_builder.is_litertlm_builder_available():
                     print("Warning: litertlm_builder not available. Saving as .tflite instead.")
                     # Fall back to saving as tflite
-                    edge_model.export(output_path.replace('.litertlm', '.tflite'))
+                    fallback_path = str(Path(output_path).with_suffix('.tflite'))
+                    edge_model.export(fallback_path)
                     print(f"✓ Conversion successful!")
-                    print(f"  Model saved to: {output_path.replace('.litertlm', '.tflite')}")
+                    print(f"  Model saved to: {fallback_path}")
                 else:
+                    # litertlm_builder creates the file as {tflite_stem}.litertlm in output_path directory
+                    # So we build it in temp, then move to the desired location
                     litertlm_builder.build_litertlm(
                         tflite_model_path=str(temp_tflite),
                         workdir=temp_dir,
-                        output_path=str(output_dir),
+                        output_path=temp_dir,  # Build in temp directory first
                         context_length=max_seq_length,
                         hf_tokenizer_model_path=str(tokenizer_path),
                         llm_model_type='generic',
                     )
+                    
+                    # Move the generated .litertlm file to the desired output location
+                    generated_file = Path(temp_dir) / f"{output_stem}.litertlm"
+                    shutil.move(str(generated_file), output_path)
+                    
                     print(f"✓ Conversion successful!")
                     print(f"  LiteRT LM model saved to: {output_path}")
         else:
             # Save as TFLite only
-            if not output_path.endswith('.tflite'):
-                output_path = output_path.replace('.litertlm', '.tflite')
-            
             print(f"Saving converted model to '{output_path}'...")
             edge_model.export(output_path)
             
@@ -214,15 +222,20 @@ Examples:
     if args.max_seq_length < 1 or args.max_seq_length > 8192:
         parser.error("--max-seq-length must be between 1 and 8192")
     
-    # Determine output format
-    build_litertlm_file = not args.tflite_only and (
-        args.output.endswith('.litertlm') or 
-        not args.output.endswith('.tflite')
-    )
-    
-    # Ensure proper extension
-    if build_litertlm_file and not args.output.endswith('.litertlm'):
-        args.output = args.output.rsplit('.', 1)[0] + '.litertlm' if '.' in args.output else args.output + '.litertlm'
+    # Determine output format and ensure proper extension
+    if args.tflite_only:
+        # User explicitly wants .tflite only
+        build_litertlm_file = False
+        if not args.output.endswith('.tflite'):
+            args.output = str(Path(args.output).with_suffix('.tflite'))
+    elif args.output.endswith('.tflite'):
+        # Output ends with .tflite, don't build .litertlm
+        build_litertlm_file = False
+    else:
+        # Default to building .litertlm
+        build_litertlm_file = True
+        if not args.output.endswith('.litertlm'):
+            args.output = str(Path(args.output).with_suffix('.litertlm'))
     
     print("=" * 60)
     print("HuggingFace to LiteRT LM Converter")
