@@ -140,12 +140,23 @@ The conversion process will create:
 
 ## Supported Models
 
+### Auto-Detect Converter
+Best for these specific architectures with optimized performance:
+- **Gemma & Gemma2** (e.g., `google/gemma-2b-it`)
+- **Llama** including Llama 2 and 3 (e.g., `meta-llama/Llama-2-7b-chat-hf`)
+- **Phi** (e.g., `microsoft/phi-2`)
+- **Qwen2** (e.g., `Qwen/Qwen2-0.5B`)
+
+The auto-detect converter uses architecture-specific model builders from ai-edge-torch for better performance and Int8 quantization.
+
+### Generic Converter (convert.py)
 This tool supports most causal language models available on Hugging Face, including:
 - GPT-2 and variants
 - GPT-Neo
 - OPT
-- Llama (with appropriate access)
 - And many more PyTorch-based LLMs
+
+Use the generic converter for models not explicitly supported by the auto-detect converter.
 
 **Note**: Some models may require special handling or may not be fully supported by ai-edge-torch. Check the [ai-edge-torch documentation](https://github.com/google-ai-edge/ai-edge-torch) for the latest compatibility information.
 
