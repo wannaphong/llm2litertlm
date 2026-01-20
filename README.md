@@ -28,9 +28,32 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Basic Conversion (Recommended)
+### Auto-Detect Converter (New - Recommended for Gemma, Llama, Phi, Qwen)
 
-Convert a Hugging Face model to LiteRT LM (.litertlm) format:
+The new auto-detect converter automatically detects model architecture and uses optimized model builders:
+
+```bash
+python convert_autodetect.py
+```
+
+Then enter the Hugging Face Model ID when prompted (e.g., `google/gemma-2b-it`).
+
+**Features:**
+- Auto-installs dependencies if needed
+- Auto-detects architecture from config.json
+- Uses architecture-specific model builders (Gemma, Llama, Phi, Qwen)
+- Int8 quantization for optimized performance
+- Creates .litertlm bundle with MediaPipe
+
+**Supported Architectures:**
+- Gemma & Gemma2
+- Llama (including Llama 2 and 3)
+- Phi (Phi-2)
+- Qwen2
+
+### Basic Conversion (Generic Approach)
+
+Convert a Hugging Face model to LiteRT LM (.litertlm) format using the generic converter:
 
 ```bash
 python convert.py --model gpt2 --output models/gpt2.litertlm
@@ -117,12 +140,23 @@ The conversion process will create:
 
 ## Supported Models
 
+### Auto-Detect Converter
+Best for these specific architectures with optimized performance:
+- **Gemma & Gemma2** (e.g., `google/gemma-2b-it`)
+- **Llama** including Llama 2 and 3 (e.g., `meta-llama/Llama-2-7b-chat-hf`)
+- **Phi** (e.g., `microsoft/phi-2`)
+- **Qwen2** (e.g., `Qwen/Qwen2-0.5B`)
+
+The auto-detect converter uses architecture-specific model builders from ai-edge-torch for better performance and Int8 quantization.
+
+### Generic Converter (convert.py)
 This tool supports most causal language models available on Hugging Face, including:
 - GPT-2 and variants
 - GPT-Neo
 - OPT
-- Llama (with appropriate access)
 - And many more PyTorch-based LLMs
+
+Use the generic converter for models not explicitly supported by the auto-detect converter.
 
 **Note**: Some models may require special handling or may not be fully supported by ai-edge-torch. Check the [ai-edge-torch documentation](https://github.com/google-ai-edge/ai-edge-torch) for the latest compatibility information.
 
