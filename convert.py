@@ -40,11 +40,18 @@ def convert_hf_to_litertlm(
     
     try:
         # Load tokenizer and model
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        print("Loading tokenizer...")
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            trust_remote_code=False,  # Security: Don't execute remote code
+        )
+        
+        print("Loading model...")
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=torch.float32,
             low_cpu_mem_usage=True,
+            trust_remote_code=False,  # Security: Don't execute remote code
         )
         model.eval()
         
@@ -62,9 +69,10 @@ def convert_hf_to_litertlm(
         # Convert to LiteRT using ai-edge-torch
         # Note: The exact conversion API depends on the ai-edge-torch version
         # This is a general approach that may need adjustment based on model architecture
+        # Pass both input_ids and attention_mask for proper inference
         edge_model = ai_edge_torch.convert(
             model,
-            (sample_input["input_ids"],)
+            (sample_input["input_ids"], sample_input["attention_mask"])
         )
         
         # Apply quantization if requested
@@ -146,10 +154,14 @@ Examples:
         "--max-seq-length",
         type=int,
         default=512,
-        help="Maximum sequence length for the model (default: 512)"
+        help="Maximum sequence length for the model (default: 512, must be between 1 and 8192)"
     )
     
     args = parser.parse_args()
+    
+    # Validate max_seq_length
+    if args.max_seq_length < 1 or args.max_seq_length > 8192:
+        parser.error("--max-seq-length must be between 1 and 8192")
     
     print("=" * 60)
     print("HuggingFace to LiteRT Converter")
