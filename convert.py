@@ -47,8 +47,23 @@ class ModelWrapper(torch.nn.Module):
         Returns:
             Logits tensor only (no cache or other objects)
         """
-        outputs = self.model(input_ids, use_cache=False, return_dict=True)
-        return outputs.logits
+        # Call model with use_cache=False to prevent DynamicCache generation
+        # Most transformer models support these parameters, but we handle gracefully
+        try:
+            outputs = self.model(input_ids, use_cache=False, return_dict=True)
+        except TypeError:
+            # Fallback for models that don't support use_cache/return_dict
+            outputs = self.model(input_ids)
+        
+        # Extract logits from output
+        if hasattr(outputs, 'logits'):
+            return outputs.logits
+        elif isinstance(outputs, tuple):
+            # If output is a tuple, first element is usually logits
+            return outputs[0]
+        else:
+            # Direct tensor output
+            return outputs
 
 
 def convert_hf_to_litertlm(
