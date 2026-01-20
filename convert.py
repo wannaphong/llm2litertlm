@@ -161,6 +161,9 @@ def convert_hf_to_litertlm(
                 tokenizer_path = Path(temp_dir) / "tokenizer"
                 tokenizer.save_pretrained(str(tokenizer_path))
                 
+                # Get path to tokenizer.json file (required by new API)
+                tokenizer_json_path = tokenizer_path / "tokenizer.json"
+                
                 # Build .litertlm file
                 print(f"Building .litertlm package...")
                 if not litertlm_builder.is_litertlm_builder_available():
@@ -171,14 +174,15 @@ def convert_hf_to_litertlm(
                     print(f"✓ Conversion successful!")
                     print(f"  Model saved to: {fallback_path}")
                 else:
-                    # litertlm_builder creates the file as {tflite_stem}.litertlm in output_path directory
-                    # So we build it in temp, then move to the desired location
+                    # Build the .litertlm file using the LiteRT-LM builder
+                    # The builder requires a tokenizer.json file (not a directory)
+                    # and creates the file as {tflite_stem}.litertlm in output_path directory
                     litertlm_builder.build_litertlm(
                         tflite_model_path=str(temp_tflite),
                         workdir=temp_dir,
                         output_path=temp_dir,  # Build in temp directory first
                         context_length=max_seq_length,
-                        hf_tokenizer_model_path=str(tokenizer_path),
+                        hf_tokenizer_model_path=str(tokenizer_json_path),
                         llm_model_type='generic',
                     )
                     
