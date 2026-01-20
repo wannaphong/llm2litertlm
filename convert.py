@@ -25,6 +25,47 @@ except ImportError as e:
     sys.exit(1)
 
 
+class ModelWrapper(torch.nn.Module):
+    """
+    Wrapper to extract only logits from model output.
+    
+    This wrapper ensures that the model returns only tensors (logits)
+    instead of the full output tuple that may contain unsupported types
+    like DynamicCache, which causes issues with torch.export.
+    """
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+    
+    def forward(self, input_ids):
+        """
+        Forward pass that returns only logits.
+        
+        Args:
+            input_ids: Input token IDs
+            
+        Returns:
+            Logits tensor only (no cache or other objects)
+        """
+        # Call model with use_cache=False to prevent DynamicCache generation
+        # Most transformer models support these parameters, but we handle gracefully
+        try:
+            outputs = self.model(input_ids, use_cache=False, return_dict=True)
+        except TypeError:
+            # Fallback for models that don't support use_cache/return_dict
+            outputs = self.model(input_ids)
+        
+        # Extract logits from output
+        if hasattr(outputs, 'logits'):
+            return outputs.logits
+        elif isinstance(outputs, tuple):
+            # If output is a tuple, first element is usually logits
+            return outputs[0]
+        else:
+            # Direct tensor output
+            return outputs
+
+
 def convert_hf_to_litertlm(
     model_name: str,
     output_path: str,
@@ -43,10 +84,10 @@ def convert_hf_to_litertlm(
         build_litertlm: Whether to build a .litertlm file (default: True)
     
     Note:
-        This converter passes only input_ids to ai_edge_torch.convert() to ensure
-        compatibility with models like Qwen that have operations unsupported by
-        torch.fx tracing. Most modern transformer models handle attention masking
-        internally during inference.
+        This converter uses a model wrapper that returns only logits to ensure
+        compatibility with torch.export. Models like Qwen that return DynamicCache
+        objects will work correctly with this approach. The wrapper sets use_cache=False
+        and extracts only the logits tensor from the model output.
     """
     print(f"Loading model '{model_name}' from Hugging Face...")
     
@@ -67,6 +108,10 @@ def convert_hf_to_litertlm(
         )
         model.eval()
         
+        # Wrap the model to return only logits (no cache)
+        # This prevents issues with torch.export not supporting DynamicCache
+        wrapped_model = ModelWrapper(model)
+        
         print(f"Model loaded successfully. Converting to LiteRT format...")
         
         # Prepare sample input for tracing
@@ -83,8 +128,9 @@ def convert_hf_to_litertlm(
         # This is a general approach that may need adjustment based on model architecture
         # Pass only input_ids to avoid tracing issues with models like Qwen
         # that contain operations not supported by torch.fx during graph tracing
+        # Use wrapped model to return only logits (no cache objects)
         edge_model = ai_edge_torch.convert(
-            model,
+            wrapped_model,
             (sample_input["input_ids"],)
         )
         
