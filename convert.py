@@ -54,22 +54,23 @@ class ModelWrapper(torch.nn.Module):
         # Provide attention_mask to avoid dynamic causal mask generation which
         # uses vmap operations incompatible with torch.export
         # Most transformer models support these parameters, but we handle gracefully
+        
+        # Build arguments dictionary
+        model_kwargs = {}
+        if attention_mask is not None:
+            model_kwargs['attention_mask'] = attention_mask
+        
         try:
-            if attention_mask is not None:
-                outputs = self.model(
-                    input_ids, 
-                    attention_mask=attention_mask,
-                    use_cache=False, 
-                    return_dict=True
-                )
-            else:
-                outputs = self.model(input_ids, use_cache=False, return_dict=True)
+            # Try with use_cache and return_dict parameters
+            outputs = self.model(
+                input_ids,
+                use_cache=False,
+                return_dict=True,
+                **model_kwargs
+            )
         except TypeError:
             # Fallback for models that don't support use_cache/return_dict
-            if attention_mask is not None:
-                outputs = self.model(input_ids, attention_mask=attention_mask)
-            else:
-                outputs = self.model(input_ids)
+            outputs = self.model(input_ids, **model_kwargs)
         
         # Extract logits from output
         if hasattr(outputs, 'logits'):
@@ -127,9 +128,8 @@ def convert_hf_to_litertlm(
         
         # Wrap the model to return only logits (no cache)
         # This prevents issues with torch.export not supporting DynamicCache
+        # The wrapper automatically sets itself to eval mode
         wrapped_model = ModelWrapper(model)
-        # Ensure wrapped model is also in eval mode
-        wrapped_model.eval()
         
         print(f"Model loaded successfully. Converting to LiteRT format...")
         
