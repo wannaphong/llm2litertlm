@@ -41,6 +41,12 @@ def convert_hf_to_litertlm(
         quantize: Whether to apply quantization (default: False)
         max_seq_length: Maximum sequence length for the model (default: 512)
         build_litertlm: Whether to build a .litertlm file (default: True)
+    
+    Note:
+        This converter passes only input_ids to ai_edge_torch.convert() to ensure
+        compatibility with models like Qwen that have operations unsupported by
+        torch.fx tracing. Most modern transformer models handle attention masking
+        internally during inference.
     """
     print(f"Loading model '{model_name}' from Hugging Face...")
     
@@ -75,10 +81,11 @@ def convert_hf_to_litertlm(
         # Convert to LiteRT using ai-edge-torch
         # Note: The exact conversion API depends on the ai-edge-torch version
         # This is a general approach that may need adjustment based on model architecture
-        # Pass both input_ids and attention_mask for proper inference
+        # Pass only input_ids to avoid tracing issues with models like Qwen
+        # that contain operations not supported by torch.fx during graph tracing
         edge_model = ai_edge_torch.convert(
             model,
-            (sample_input["input_ids"], sample_input["attention_mask"])
+            (sample_input["input_ids"],)
         )
         
         # Apply quantization if requested
