@@ -7,7 +7,6 @@ Hugging Face to LiteRT format for deployment on mobile and edge devices.
 """
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -15,7 +14,6 @@ try:
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
     import ai_edge_torch
-    from ai_edge_torch.generative.layers import attention
     from ai_edge_torch.generative.quantize import quant_recipes
 except ImportError as e:
     print(f"Error: Missing required dependency - {e}")
