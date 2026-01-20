@@ -22,8 +22,8 @@ pip install -r requirements.txt
 ## Requirements
 
 - Python 3.8 or higher
-- PyTorch 2.0+
-- Transformers 4.30+
+- PyTorch 2.6+
+- Transformers 4.48+
 - ai-edge-torch 0.2.0+
 
 ## Usage
