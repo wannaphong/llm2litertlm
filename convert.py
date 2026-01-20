@@ -75,10 +75,11 @@ def convert_hf_to_litertlm(
         # Convert to LiteRT using ai-edge-torch
         # Note: The exact conversion API depends on the ai-edge-torch version
         # This is a general approach that may need adjustment based on model architecture
-        # Pass both input_ids and attention_mask for proper inference
+        # Pass only input_ids to avoid tracing issues with models like Qwen
+        # that contain operations not supported by torch.fx during graph tracing
         edge_model = ai_edge_torch.convert(
             model,
-            (sample_input["input_ids"], sample_input["attention_mask"])
+            (sample_input["input_ids"],)
         )
         
         # Apply quantization if requested
