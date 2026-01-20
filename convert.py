@@ -41,6 +41,12 @@ def convert_hf_to_litertlm(
         quantize: Whether to apply quantization (default: False)
         max_seq_length: Maximum sequence length for the model (default: 512)
         build_litertlm: Whether to build a .litertlm file (default: True)
+    
+    Note:
+        This converter passes only input_ids to ai_edge_torch.convert() to ensure
+        compatibility with models like Qwen that have operations unsupported by
+        torch.fx tracing. Most modern transformer models handle attention masking
+        internally during inference.
     """
     print(f"Loading model '{model_name}' from Hugging Face...")
     
