@@ -10,6 +10,7 @@ import os
 import json
 import subprocess
 import sys
+import importlib
 
 # --- 1. Auto-Install Dependencies ---
 def install_dependencies():
@@ -21,11 +22,13 @@ try:
     import torch
     from huggingface_hub import snapshot_download
     from mediapipe.tasks.python.genai import bundler
+    from ai_edge_torch.generative.utilities import converter
 except ImportError:
     install_dependencies()
     import torch
     from huggingface_hub import snapshot_download
     from mediapipe.tasks.python.genai import bundler
+    from ai_edge_torch.generative.utilities import converter
 
 # --- 2. Configuration Mappings ---
 # This maps the 'model_type' from HF config.json to the required settings
@@ -98,6 +101,8 @@ def main():
     # Fallback/Error handling
     if not settings:
         print(f"Warning: Model type '{model_type}' is not explicitly mapped.")
+        print("Supported architectures: gemma, gemma2, llama, phi, qwen2")
+        print("For other models, consider using the generic converter (convert.py)")
         print("Attempting generic mapping (Llama-style fallback)...")
         settings = ARCH_CONFIG["llama"]
     
@@ -106,15 +111,17 @@ def main():
 
     # C. Convert
     print(f"\n[Step 3] Converting to LiteRT (Int8)...")
-    from ai_edge_torch.generative.utilities import converter
-    import importlib
 
     try:
         module = importlib.import_module(settings['import_path'])
         model = module.build_model(model_path)
         
         tflite_path = "temp_model.tflite"
-        output_path = f"{repo_id.split('/')[-1]}.litertlm"
+        # Safely extract model name from repo_id
+        model_name = os.path.basename(repo_id.rstrip('/'))
+        if not model_name:
+            model_name = "model"
+        output_path = f"{model_name}.litertlm"
 
         converter.convert_to_tflite(
             model,
@@ -161,12 +168,17 @@ def main():
         )
         bundler.create_bundle(bundle_config)
         
-        # Cleanup
-        if os.path.exists(tflite_path): os.remove(tflite_path)
         print(f"\nSUCCESS! File ready: {os.path.abspath(output_path)}")
         
     except Exception as e:
         print(f"Bundling failed: {e}")
+    finally:
+        # Cleanup temporary tflite file
+        if os.path.exists(tflite_path):
+            try:
+                os.remove(tflite_path)
+            except Exception as cleanup_error:
+                print(f"Warning: Could not remove temporary file {tflite_path}: {cleanup_error}")
 
 if __name__ == "__main__":
     main()

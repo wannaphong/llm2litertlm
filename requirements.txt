@@ -1,4 +1,6 @@
 ai-edge-torch>=0.2.0
+# Note: Nightly builds are required for auto-detect converter (convert_autodetect.py)
+# These change daily and may have stability issues
 ai-edge-torch-nightly
 ai-edge-litert-nightly
 torch>=2.6.0
