@@ -28,9 +28,32 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Basic Conversion (Recommended)
+### Auto-Detect Converter (New - Recommended for Gemma, Llama, Phi, Qwen)
 
-Convert a Hugging Face model to LiteRT LM (.litertlm) format:
+The new auto-detect converter automatically detects model architecture and uses optimized model builders:
+
+```bash
+python convert_autodetect.py
+```
+
+Then enter the Hugging Face Model ID when prompted (e.g., `google/gemma-2b-it`).
+
+**Features:**
+- Auto-installs dependencies if needed
+- Auto-detects architecture from config.json
+- Uses architecture-specific model builders (Gemma, Llama, Phi, Qwen)
+- Int8 quantization for optimized performance
+- Creates .litertlm bundle with MediaPipe
+
+**Supported Architectures:**
+- Gemma & Gemma2
+- Llama (including Llama 2 and 3)
+- Phi (Phi-2)
+- Qwen2
+
+### Basic Conversion (Generic Approach)
+
+Convert a Hugging Face model to LiteRT LM (.litertlm) format using the generic converter:
 
 ```bash
 python convert.py --model gpt2 --output models/gpt2.litertlm
