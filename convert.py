@@ -36,6 +36,8 @@ class ModelWrapper(torch.nn.Module):
     def __init__(self, model):
         super().__init__()
         self.model = model
+        # Ensure the wrapper is in eval mode
+        self.eval()
     
     def forward(self, input_ids):
         """
@@ -106,11 +108,14 @@ def convert_hf_to_litertlm(
             low_cpu_mem_usage=True,
             trust_remote_code=False,  # Security: Don't execute remote code
         )
+        # Set model to evaluation mode before wrapping
         model.eval()
         
         # Wrap the model to return only logits (no cache)
         # This prevents issues with torch.export not supporting DynamicCache
         wrapped_model = ModelWrapper(model)
+        # Ensure wrapped model is also in eval mode
+        wrapped_model.eval()
         
         print(f"Model loaded successfully. Converting to LiteRT format...")
         
@@ -129,10 +134,12 @@ def convert_hf_to_litertlm(
         # Pass only input_ids to avoid tracing issues with models like Qwen
         # that contain operations not supported by torch.fx during graph tracing
         # Use wrapped model to return only logits (no cache objects)
-        edge_model = ai_edge_torch.convert(
-            wrapped_model,
-            (sample_input["input_ids"],)
-        )
+        # Use torch.no_grad() to ensure no gradients are tracked during conversion
+        with torch.no_grad():
+            edge_model = ai_edge_torch.convert(
+                wrapped_model,
+                (sample_input["input_ids"],)
+            )
         
         # Apply quantization if requested
         if quantize:
