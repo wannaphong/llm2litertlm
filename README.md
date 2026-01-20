@@ -1,10 +1,10 @@
 # llm2litertlm
 
-Convert Hugging Face LLM models to LiteRT (TensorFlow Lite) format for deployment on mobile and edge devices.
+Convert Hugging Face LLM models to LiteRT LM (.litertlm) format for deployment on mobile and edge devices.
 
 ## Overview
 
-This tool provides an easy way to convert Large Language Models (LLMs) from Hugging Face to LiteRT format using [ai-edge-torch](https://github.com/google-ai-edge/ai-edge-torch). LiteRT (formerly TensorFlow Lite) enables running ML models efficiently on mobile, embedded, and edge devices.
+This tool provides an easy way to convert Large Language Models (LLMs) from Hugging Face to LiteRT LM format using [ai-edge-torch](https://github.com/google-ai-edge/ai-edge-torch). The `.litertlm` format is a packaged format that includes the TFLite model, tokenizer, and metadata, enabling efficient deployment on mobile, embedded, and edge devices.
 
 ## Installation
 
@@ -28,12 +28,25 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Basic Conversion
+### Basic Conversion (Recommended)
 
-Convert a Hugging Face model to LiteRT format:
+Convert a Hugging Face model to LiteRT LM (.litertlm) format:
 
 ```bash
-python convert.py --model gpt2 --output models/gpt2.tflite
+python convert.py --model gpt2 --output models/gpt2.litertlm
+```
+
+The `.litertlm` format includes:
+- The converted TFLite model
+- Tokenizer configuration
+- Model metadata (context length, etc.)
+
+### TFLite Only
+
+Convert to TFLite format only (without packaging):
+
+```bash
+python convert.py --model gpt2 --output models/gpt2.tflite --tflite-only
 ```
 
 ### With Quantization
@@ -41,7 +54,7 @@ python convert.py --model gpt2 --output models/gpt2.tflite
 Apply quantization to reduce model size (with potential minor accuracy trade-off):
 
 ```bash
-python convert.py --model gpt2 --output models/gpt2.tflite --quantize
+python convert.py --model gpt2 --output models/gpt2.litertlm --quantize
 ```
 
 ### Custom Sequence Length
@@ -49,43 +62,58 @@ python convert.py --model gpt2 --output models/gpt2.tflite --quantize
 Specify a custom maximum sequence length:
 
 ```bash
-python convert.py --model gpt2 --output models/gpt2.tflite --max-seq-length 1024
+python convert.py --model gpt2 --output models/gpt2.litertlm --max-seq-length 1024
 ```
 
 ## Command Line Arguments
 
 - `--model`, `-m`: (Required) Name or path of the Hugging Face model
   - Examples: `gpt2`, `facebook/opt-125m`, `EleutherAI/gpt-neo-125m`
-- `--output`, `-o`: (Required) Output path for the converted LiteRT model
-  - Example: `models/my_model.tflite`
+- `--output`, `-o`: (Required) Output path for the converted model
+  - Examples: `models/my_model.litertlm`, `models/my_model.tflite`
 - `--quantize`, `-q`: (Optional) Enable quantization to reduce model size
-- `--max-seq-length`: (Optional) Maximum sequence length (default: 512)
+- `--max-seq-length`: (Optional) Maximum sequence length (default: 512, range: 1-8192)
+- `--tflite-only`: (Optional) Only generate TFLite file without building .litertlm package
 
 ## Examples
 
-### Convert GPT-2
+### Convert GPT-2 to LiteRT LM
 
 ```bash
-python convert.py --model gpt2 --output models/gpt2.tflite
+python convert.py --model gpt2 --output models/gpt2.litertlm
 ```
 
 ### Convert OPT-125M with Quantization
 
 ```bash
-python convert.py --model facebook/opt-125m --output models/opt-125m.tflite --quantize
+python convert.py --model facebook/opt-125m --output models/opt-125m.litertlm --quantize
+```
+
+### Convert to TFLite Only
+
+```bash
+python convert.py --model gpt2 --output models/gpt2.tflite --tflite-only
 ```
 
 ### Convert a Local Model
 
 ```bash
-python convert.py --model ./my_local_model --output models/custom.tflite
+python convert.py --model ./my_local_model --output models/custom.litertlm
 ```
 
 ## Output
 
 The conversion process will create:
-- The converted LiteRT model (`.tflite` file)
-- A tokenizer directory with the model's tokenizer configuration
+
+### For .litertlm format (default):
+- A complete `.litertlm` package containing:
+  - The converted TFLite model
+  - Tokenizer configuration
+  - Model metadata (context length, prompt templates, etc.)
+
+### For .tflite format (with --tflite-only):
+- The converted `.tflite` model file
+- A separate tokenizer directory with the model's tokenizer configuration
 
 ## Supported Models
 

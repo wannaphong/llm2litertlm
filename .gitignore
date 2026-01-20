@@ -41,6 +41,7 @@ venv.bak/
 # Model outputs
 models/
 *.tflite
+*.litertlm
 tokenizer/
 
 # Logs
